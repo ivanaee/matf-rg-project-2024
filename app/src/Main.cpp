@@ -1,8 +1,12 @@
 #include <engine/core/Engine.hpp>
 
-/**
- * Start here...
- */
+class MainApp final : public engine::core::App {
+protected:
+    void app_setup() override {
+    }
+};
+
 int main(int argc, char** argv) {
-    return 0;
+    auto app = std::make_unique<MainApp>();
+    return app->run(argc, argv);
 }
