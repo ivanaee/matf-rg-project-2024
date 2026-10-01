@@ -124,6 +124,12 @@ public:
     */
     static void enable_depth_testing();
 
+    static void enable_blending();
+    static void enable_face_culling();
+
+    static void initialize_post_processing(uint32_t width, uint32_t height);
+    static void begin_post_processing();
+    static void end_post_processing();
     /**
     * @brief Disables depth testing.
     */

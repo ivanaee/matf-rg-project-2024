@@ -50,8 +50,8 @@ uniform float spotLightOuterCutOff;
 
 void main()
 {
-    vec3 objectColor = texture(texture_diffuse1, TexCoords).rgb;
-
+    vec4 textureColor = texture(texture_diffuse1, TexCoords);
+    vec3 objectColor = textureColor.rgb;
     vec3 norm = normalize(Normal);
 
     // Directional light
@@ -156,5 +156,5 @@ void main()
         + pointResult
         + spotResult;
 
-    FragColor = vec4(result, 1.0);
+    FragColor = vec4(result, textureColor.a);
 }

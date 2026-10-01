@@ -1,14 +1,6 @@
 {
   "resources": {
     "models": {
-      "backpack": {
-        "path": "backpack/backpack.obj",
-        "flip_uvs": false
-      },
-      "cube": {
-        "path": "cube/cube.obj",
-        "flip_uvs": false
-      },
       "campfire": {
         "path": "camp/Campfire OBJ.obj",
         "flip_uvs": false
@@ -21,7 +13,7 @@
   },
   "window": {
     "height": 600,
-    "title": "Hello, window!",
+    "title": "Night Camp",
     "width": 800
   }
 }

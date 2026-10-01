@@ -1,10 +1,11 @@
 #include <engine/core/Engine.hpp>
 #include <engine/graphics/GraphicsController.hpp>
+#include <imgui.h>
 
 class MainController : public engine::core::Controller {
 protected:
-
     float m_fire_intensity = 1.0f;
+    float m_grayscale_amount = 0.0f;
 
     glm::vec3 m_fire_color = glm::vec3(1.0f, 0.45f, 0.10f);
 
@@ -14,6 +15,10 @@ protected:
 
     void initialize() override {
         engine::graphics::OpenGL::enable_depth_testing();
+        engine::graphics::OpenGL::enable_blending();
+        engine::graphics::OpenGL::enable_face_culling();
+
+        engine::graphics::OpenGL::initialize_post_processing(800, 600);
     }
 
     void update() override {
@@ -25,34 +30,40 @@ protected:
 
         float dt = platform->dt();
 
+        // Camera movement
         if (platform->key(engine::platform::KEY_W).state()
             == engine::platform::Key::State::Pressed) {
             camera->move_camera(
-                engine::graphics::Camera::Movement::FORWARD, dt
+                engine::graphics::Camera::Movement::FORWARD,
+                dt
             );
         }
 
         if (platform->key(engine::platform::KEY_S).state()
             == engine::platform::Key::State::Pressed) {
             camera->move_camera(
-                engine::graphics::Camera::Movement::BACKWARD, dt
+                engine::graphics::Camera::Movement::BACKWARD,
+                dt
             );
         }
 
         if (platform->key(engine::platform::KEY_A).state()
             == engine::platform::Key::State::Pressed) {
             camera->move_camera(
-                engine::graphics::Camera::Movement::LEFT, dt
+                engine::graphics::Camera::Movement::LEFT,
+                dt
             );
         }
 
         if (platform->key(engine::platform::KEY_D).state()
             == engine::platform::Key::State::Pressed) {
             camera->move_camera(
-                engine::graphics::Camera::Movement::RIGHT, dt
+                engine::graphics::Camera::Movement::RIGHT,
+                dt
             );
         }
 
+        // Fire intensity with keyboard
         if (platform->key(engine::platform::KEY_UP).is_down()) {
             m_fire_intensity += dt;
         }
@@ -69,8 +80,9 @@ protected:
             m_fire_intensity = 0.1f;
         }
 
+        // Start timed event sequence
         if (platform->key(engine::platform::KEY_T).state()
-    == engine::platform::Key::State::JustPressed) {
+            == engine::platform::Key::State::JustPressed) {
 
             m_event_sequence_active = true;
             m_event_timer = 0.0f;
@@ -78,8 +90,9 @@ protected:
 
             m_fire_color = glm::vec3(1.0f, 0.45f, 0.10f);
             m_fire_intensity = 1.0f;
-    }
+        }
 
+        // Timed event sequence
         if (m_event_sequence_active) {
             m_event_timer += dt;
 
@@ -104,7 +117,7 @@ protected:
     }
 
     void begin_draw() override {
-        engine::graphics::OpenGL::clear_buffers();
+        engine::graphics::OpenGL::begin_post_processing();
     }
 
     void draw() override {
@@ -120,13 +133,12 @@ protected:
 
         shader->use();
 
-        // Camera projection matrix.
+        // Camera matrices
         shader->set_mat4(
             "projection",
             graphics->projection_matrix()
         );
 
-        // Camera view matrix.
         shader->set_mat4(
             "view",
             graphics->camera()->view_matrix()
@@ -137,6 +149,7 @@ protected:
             graphics->camera()->Position
         );
 
+        // Directional light
         shader->set_vec3(
             "dirLightDirection",
             glm::vec3(-0.2f, -1.0f, -0.3f)
@@ -147,16 +160,18 @@ protected:
             glm::vec3(1.0f, 1.0f, 1.0f)
         );
 
+        // Point light - campfire
         shader->set_vec3(
-    "pointLightPosition",
-    glm::vec3(7.0f, -0.5f, -5.0f)
+            "pointLightPosition",
+            glm::vec3(7.0f, -0.5f, -5.0f)
         );
 
         shader->set_vec3(
-    "pointLightColor",
-    m_fire_color * m_fire_intensity
+            "pointLightColor",
+            m_fire_color * m_fire_intensity
         );
 
+        // Spotlight attached to camera
         auto camera = graphics->camera();
 
         shader->set_vec3(
@@ -184,7 +199,7 @@ protected:
             glm::cos(glm::radians(17.5f))
         );
 
-        // Position and size of our campsite model.
+        // Campsite
         glm::mat4 campfire_model = glm::mat4(1.0f);
 
         campfire_model = glm::translate(
@@ -198,9 +213,9 @@ protected:
         );
 
         shader->set_mat4("model", campfire_model);
-
         campfire->draw(shader);
 
+        // Tree 1
         glm::mat4 tree_model = glm::mat4(1.0f);
 
         tree_model = glm::translate(
@@ -214,9 +229,9 @@ protected:
         );
 
         shader->set_mat4("model", tree_model);
-
         tree->draw(shader);
 
+        // Tree 2
         glm::mat4 tree_model2 = glm::mat4(1.0f);
 
         tree_model2 = glm::translate(
@@ -230,9 +245,9 @@ protected:
         );
 
         shader->set_mat4("model", tree_model2);
-
         tree->draw(shader);
 
+        // Tree 3
         glm::mat4 tree_model3 = glm::mat4(1.0f);
 
         tree_model3 = glm::translate(
@@ -246,8 +261,58 @@ protected:
         );
 
         shader->set_mat4("model", tree_model3);
-
         tree->draw(shader);
+
+        // Skybox
+        auto skybox_shader = resources->shader("skybox");
+        auto night_skybox = resources->skybox("night");
+
+        graphics->draw_skybox(
+            skybox_shader,
+            night_skybox
+        );
+
+        // GUI
+        // It is drawn before post-processing so the slider value
+        // is available immediately in the current frame.
+        graphics->begin_gui();
+
+        ImGui::Begin("Lighting controls");
+
+        ImGui::SliderFloat(
+            "Fire intensity",
+            &m_fire_intensity,
+            0.1f,
+            2.0f
+        );
+
+        ImGui::ColorEdit3(
+            "Fire color",
+            &m_fire_color.x
+        );
+
+        ImGui::SliderFloat(
+            "Grayscale",
+            &m_grayscale_amount,
+            0.0f,
+            1.0f
+        );
+
+        ImGui::End();
+
+        graphics->end_gui();
+
+        // Post-processing
+        auto postprocess_shader = resources->shader("postprocess");
+
+        postprocess_shader->use();
+
+        postprocess_shader->set_float(
+            "grayscaleAmount",
+            m_grayscale_amount
+        );
+
+        engine::graphics::OpenGL::end_post_processing();
     }
 
     void end_draw() override {

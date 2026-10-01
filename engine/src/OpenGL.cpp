@@ -9,6 +9,13 @@
 #include <engine/util/Errors.hpp>
 #include <engine/util/Utils.hpp>
 
+namespace {
+GLuint post_framebuffer = 0;
+GLuint post_color_texture = 0;
+GLuint post_renderbuffer = 0;
+GLuint post_vao = 0;
+}
+
 namespace engine::graphics {
 int32_t OpenGL::shader_type_to_opengl_type(resources::ShaderType type) {
     switch (type) {
@@ -172,6 +179,238 @@ uint32_t OpenGL::load_skybox_textures(const std::filesystem::path &path, bool fl
 
 void OpenGL::enable_depth_testing() {
     CHECKED_GL_CALL(glEnable, GL_DEPTH_TEST);
+}
+
+void OpenGL::enable_blending() {
+    call(
+        std::source_location::current(),
+        glEnable,
+        GL_BLEND
+    );
+
+    call(
+        std::source_location::current(),
+        glBlendFunc,
+        GL_SRC_ALPHA,
+        GL_ONE_MINUS_SRC_ALPHA
+    );
+}
+
+void OpenGL::enable_face_culling() {
+    call(
+        std::source_location::current(),
+        glEnable,
+        GL_CULL_FACE
+    );
+
+    call(
+        std::source_location::current(),
+        glCullFace,
+        GL_BACK
+    );
+
+    call(
+        std::source_location::current(),
+        glFrontFace,
+        GL_CCW
+    );
+}
+
+void OpenGL::initialize_post_processing(uint32_t width, uint32_t height) {
+    // Framebuffer
+    call(
+        std::source_location::current(),
+        glGenFramebuffers,
+        1,
+        &post_framebuffer
+    );
+
+    call(
+        std::source_location::current(),
+        glBindFramebuffer,
+        GL_FRAMEBUFFER,
+        post_framebuffer
+    );
+
+    // Texture u koju se crta cela scena
+    call(
+        std::source_location::current(),
+        glGenTextures,
+        1,
+        &post_color_texture
+    );
+
+    call(
+        std::source_location::current(),
+        glBindTexture,
+        GL_TEXTURE_2D,
+        post_color_texture
+    );
+
+    call(
+        std::source_location::current(),
+        glTexImage2D,
+        GL_TEXTURE_2D,
+        0,
+        GL_RGB,
+        static_cast<GLsizei>(width),
+        static_cast<GLsizei>(height),
+        0,
+        GL_RGB,
+        GL_UNSIGNED_BYTE,
+        nullptr
+    );
+
+    call(
+        std::source_location::current(),
+        glTexParameteri,
+        GL_TEXTURE_2D,
+        GL_TEXTURE_MIN_FILTER,
+        GL_LINEAR
+    );
+
+    call(
+        std::source_location::current(),
+        glTexParameteri,
+        GL_TEXTURE_2D,
+        GL_TEXTURE_MAG_FILTER,
+        GL_LINEAR
+    );
+
+    call(
+        std::source_location::current(),
+        glFramebufferTexture2D,
+        GL_FRAMEBUFFER,
+        GL_COLOR_ATTACHMENT0,
+        GL_TEXTURE_2D,
+        post_color_texture,
+        0
+    );
+
+    // Depth + stencil
+    call(
+        std::source_location::current(),
+        glGenRenderbuffers,
+        1,
+        &post_renderbuffer
+    );
+
+    call(
+        std::source_location::current(),
+        glBindRenderbuffer,
+        GL_RENDERBUFFER,
+        post_renderbuffer
+    );
+
+    call(
+        std::source_location::current(),
+        glRenderbufferStorage,
+        GL_RENDERBUFFER,
+        GL_DEPTH24_STENCIL8,
+        static_cast<GLsizei>(width),
+        static_cast<GLsizei>(height)
+    );
+
+    call(
+        std::source_location::current(),
+        glFramebufferRenderbuffer,
+        GL_FRAMEBUFFER,
+        GL_DEPTH_STENCIL_ATTACHMENT,
+        GL_RENDERBUFFER,
+        post_renderbuffer
+    );
+
+    // Fullscreen triangle VAO
+    call(
+        std::source_location::current(),
+        glGenVertexArrays,
+        1,
+        &post_vao
+    );
+
+    // Vracamo crtanje na normalan ekran
+    call(
+        std::source_location::current(),
+        glBindFramebuffer,
+        GL_FRAMEBUFFER,
+        0
+    );
+}
+
+void OpenGL::begin_post_processing() {
+    call(
+        std::source_location::current(),
+        glBindFramebuffer,
+        GL_FRAMEBUFFER,
+        post_framebuffer
+    );
+
+    call(
+        std::source_location::current(),
+        glEnable,
+        GL_DEPTH_TEST
+    );
+
+    clear_buffers();
+}
+
+void OpenGL::end_post_processing() {
+    // Vracamo se na normalan ekran
+    call(
+        std::source_location::current(),
+        glBindFramebuffer,
+        GL_FRAMEBUFFER,
+        0
+    );
+
+    call(
+        std::source_location::current(),
+        glDisable,
+        GL_DEPTH_TEST
+    );
+
+    clear_buffers();
+
+    // Tekstura u kojoj je nacrtana cela scena
+    call(
+        std::source_location::current(),
+        glActiveTexture,
+        GL_TEXTURE0
+    );
+
+    call(
+        std::source_location::current(),
+        glBindTexture,
+        GL_TEXTURE_2D,
+        post_color_texture
+    );
+
+    call(
+        std::source_location::current(),
+        glBindVertexArray,
+        post_vao
+    );
+
+    call(
+        std::source_location::current(),
+        glDrawArrays,
+        GL_TRIANGLES,
+        0,
+        3
+    );
+
+    call(
+        std::source_location::current(),
+        glBindVertexArray,
+        0
+    );
+
+    // Posle post-processinga vracamo depth test
+    call(
+        std::source_location::current(),
+        glEnable,
+        GL_DEPTH_TEST
+    );
 }
 
 void OpenGL::disable_depth_testing() {
