@@ -4,6 +4,18 @@
       "backpack": {
         "path": "backpack/backpack.obj",
         "flip_uvs": false
+      },
+      "cube": {
+        "path": "cube/cube.obj",
+        "flip_uvs": false
+      },
+      "campfire": {
+        "path": "camp/Campfire OBJ.obj",
+        "flip_uvs": false
+      },
+      "tree": {
+        "path": "tree/Hand painted Tree.obj",
+        "flip_uvs": false
       }
     }
   },
