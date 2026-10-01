@@ -3,6 +3,15 @@
 
 class MainController : public engine::core::Controller {
 protected:
+
+    float m_fire_intensity = 1.0f;
+
+    glm::vec3 m_fire_color = glm::vec3(1.0f, 0.45f, 0.10f);
+
+    bool m_event_sequence_active = false;
+    float m_event_timer = 0.0f;
+    int m_event_stage = 0;
+
     void initialize() override {
         engine::graphics::OpenGL::enable_depth_testing();
     }
@@ -44,6 +53,50 @@ protected:
             );
         }
 
+        if (platform->key(engine::platform::KEY_UP).is_down()) {
+            m_fire_intensity += dt;
+        }
+
+        if (platform->key(engine::platform::KEY_DOWN).is_down()) {
+            m_fire_intensity -= dt;
+        }
+
+        if (m_fire_intensity > 2.0f) {
+            m_fire_intensity = 2.0f;
+        }
+
+        if (m_fire_intensity < 0.1f) {
+            m_fire_intensity = 0.1f;
+        }
+
+        if (platform->key(engine::platform::KEY_T).state()
+    == engine::platform::Key::State::JustPressed) {
+
+            m_event_sequence_active = true;
+            m_event_timer = 0.0f;
+            m_event_stage = 0;
+
+            m_fire_color = glm::vec3(1.0f, 0.45f, 0.10f);
+            m_fire_intensity = 1.0f;
+    }
+
+        if (m_event_sequence_active) {
+            m_event_timer += dt;
+
+            if (m_event_stage == 0 && m_event_timer >= 2.0f) {
+                m_fire_color = glm::vec3(1.0f, 0.15f, 0.05f);
+
+                m_event_stage = 1;
+                m_event_timer = 0.0f;
+            }
+            else if (m_event_stage == 1 && m_event_timer >= 2.0f) {
+                m_fire_intensity = 0.15f;
+
+                m_event_stage = 2;
+                m_event_sequence_active = false;
+            }
+        }
+
         auto mouse = platform->mouse();
 
         camera->rotate_camera(mouse.dx, mouse.dy);
@@ -77,6 +130,58 @@ protected:
         shader->set_mat4(
             "view",
             graphics->camera()->view_matrix()
+        );
+
+        shader->set_vec3(
+            "viewPos",
+            graphics->camera()->Position
+        );
+
+        shader->set_vec3(
+            "dirLightDirection",
+            glm::vec3(-0.2f, -1.0f, -0.3f)
+        );
+
+        shader->set_vec3(
+            "dirLightColor",
+            glm::vec3(1.0f, 1.0f, 1.0f)
+        );
+
+        shader->set_vec3(
+    "pointLightPosition",
+    glm::vec3(7.0f, -0.5f, -5.0f)
+        );
+
+        shader->set_vec3(
+    "pointLightColor",
+    m_fire_color * m_fire_intensity
+        );
+
+        auto camera = graphics->camera();
+
+        shader->set_vec3(
+            "spotLightPosition",
+            camera->Position
+        );
+
+        shader->set_vec3(
+            "spotLightDirection",
+            camera->Front
+        );
+
+        shader->set_vec3(
+            "spotLightColor",
+            glm::vec3(1.0f, 1.0f, 0.9f)
+        );
+
+        shader->set_float(
+            "spotLightCutOff",
+            glm::cos(glm::radians(12.5f))
+        );
+
+        shader->set_float(
+            "spotLightOuterCutOff",
+            glm::cos(glm::radians(17.5f))
         );
 
         // Position and size of our campsite model.
